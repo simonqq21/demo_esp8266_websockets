@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width initial-scale=1.0">
+    <title></title>
+    <style>
+        * {
+            font-family: Arial, serif;
+        }
+        header {
+            padding: 0.1em 1.5em;
+            background: #eeeeff;
+        }
+        .statuscontainer {
+            text-align: left;
+            margin-left: 40px;
+        }
+        .ioctrl {
+            margin-bottom: 20px;
+        }
+        .ioctrl p {
+            padding: 0;
+            margin: 0;
+        }
+        .statusindicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .redstatus {
+            background-color: red;
+        }
+        .greenstatus {
+            background-color: green;
+        }
+        .bluestatus {
+            background-color: blue;
+        }
+        .inputcontainer {
+            margin-left: 40px;
+        }
+        input[type="button"] {
+            height: 40px;
+            min-width: 50px;
+            border-radius: 20px;
+            margin: 10px 2px 0;
+            font-size: 15px;
+            color: white;
+        }
+        .green_btn {
+            background-color: green;
+        }
+        .red_btn {
+            background-color: red;
+        }
+        .blue_btn {
+            background-color: blue;
+        }
+    </style>
+</head>  
+<body onload="initBody()">
+    <header>
+        <h1>ESP8266 Asynchronous Web Server Example</h1>
+    </header>
+    <div class="ioctrlcontainer">
+        <h2>Control Panel</h2>
+        <div class="ioctrl">
+            <p>LED 1</p>
+            <div class="statuscontainer">
+                <span>Status:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                <span class="statusindicator redstatus" id="led0_status"></span>
+                <span id="led0_statusword">%LED0STATE%</span>
+            </div>
+            <div class="inputcontainer">
+                <input type="button" class="green_btn" value="on" id="led0_on" onclick="switchLED(0, 1);">
+                <input type="button" class="red_btn" value="off" id="led0_off" onclick="switchLED(0, 0);">
+                <input type="button" class="blue_btn" value="momentary" id="led0_moment" 
+                    onmousedown="switchLED(0, 1);" 
+                    ontouchstart="switchLED(0, 1);"           
+                    onmouseup="switchLED(0, 0);" 
+                    ontouchend="switchLED(0, 0);"   
+                >
+                <input type="button" class="blue_btn" value="blink" id="led0_blink" onclick="switchLED(0, 2);">
+            </div>
+        </div>
+        <div class="ioctrl">
+            <p>LED 2</p>
+            <div class="statuscontainer">
+                <span>Status:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                <span class="statusindicator redstatus" id="led1_status"></span>
+                <span id="led1_statusword">%LED1STATE%</span>
+            </div>
+            <div class="inputcontainer">
+                <input type="button" class="green_btn" value="on" id="led1_on" onclick="switchLED(1, 1);">
+                <input type="button" class="red_btn" value="off" id="led1_off" onclick="switchLED(1, 0);">
+                <input type="button" class="blue_btn" value="momentary" id="led1_moment" 
+                    onmousedown="switchLED(1, 1);" 
+                    ontouchstart="switchLED(1, 1);"           
+                    onmouseup="switchLED(1, 0);" 
+                    ontouchend="switchLED(1, 0);"   
+                >
+                <input type="button" class="blue_btn" value="blink" id="led1_blink" onclick="switchLED(1, 2);">
+            </div>
+        </div>
+        <div class="ioctrl">
+            <p>LED 3</p>
+            <div class="statuscontainer">
+                <span>Status:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                <span class="statusindicator redstatus" id="led2_status"></span>
+                <span id="led2_statusword">%LED2STATE%</span>
+            </div>
+            <div class="inputcontainer">
+                <input type="button" class="green_btn" value="on" id="led2_on" onclick="switchLED(2, 1);">
+                <input type="button" class="red_btn" value="off" id="led2_off" onclick="switchLED(2, 0);">
+                <input type="button" class="blue_btn" value="momentary" id="led2_moment" 
+                    onmousedown="switchLED(2, 1);" 
+                    onmouseup="switchLED(2, 0);" 
+                    ontouchstart="switchLED(2, 1);" 
+                    ontouchend="switchLED(2, 0);" 
+                >
+                <input type="button" class="blue_btn" value="blink" id="led2_blink" onclick="switchLED(2, 2);">
+            </div>
+        </div>
+        <div class="ioctrl">
+            <p>Button 1</p> 
+            <div class="statuscontainer">
+                <span>Status:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                <span class="statusindicator redstatus" id="btn0_status"></span>
+                <span id="btn0_statusword">%BTN1STATE%</span>
+            </div>
+        </div>
+    </div>  
+</body>
+<script type="text/javascript">
+    const onText = "On";
+    const offText = "Off";
+    const blinkText = "Blinking";
+
+    let gateway = `ws://${window.location.hostname}/ws`;
+    let websocket;
+
+    function initWebSocket() {
+        alert('Websocket initializing');
+        websocket = new WebSocket(gateway);
+        websocket.onopen = onOpen; 
+        websocket.onclose = onClose; 
+        websocket.onmessage = onMessage;
+    }
+    // runs when websocket opens
+    function onOpen(event) {
+        alert('Connection opened');
+    }
+
+    // runs when websocket closes
+    function onClose(event) {
+        alert('Connection closed');
+        setTimeout(initWebSocket, 2000); // restart websocket
+    }
+
+    // runs when websocket receives message from server
+    function onMessage(event) {
+        alert(event.data);
+        // updateLEDStatus(jhttp);
+
+    }
+
+    function switchLED(index, state) {
+        let ledJSON = {
+            'type': 'led',
+            'index': index,
+            'state': state, 
+        }
+        websocket.send(JSON.stringify(ledJSON));
+    }
+
+    // function updateLEDStatus(LEDJsonStr) {
+    //     let jsondata = JSON.parse(LEDJsonStr);
+    //     let index = jsondata.index;
+    //     let state = jsondata.state;
+    //     let blink = jsondata.blink;
+    //     let statusElement = document.getElementById(`led${index}_status`);
+    //     let statusWordElement = document.getElementById(`led${index}_statusword`);
+    //     if (state <= 0) {
+    //         changeStatusColor(statusElement, "redstatus");
+    //         statusWordElement.innerHTML = offText;
+    //     }
+    //     else {
+    //         changeStatusColor(statusElement, "greenstatus");
+    //         statusWordElement.innerHTML = onText;
+    //     }
+    //     if (blink > 0) { 
+    //         changeStatusColor(statusElement, "bluestatus");
+    //         statusWordElement.innerHTML = blinkText;
+    //     }
+    // }
+
+    // function changeStatusColor(statusElement, statusColor) {
+    //     statusElement.className = "statusindicator";
+    //     statusElement.classList.add(statusColor);
+    // }
+
+    // function queryButton(index) {
+    //         let jsondata = JSON.parse(jhttp.responseText);
+    //         let type = jsondata.type;
+    //         let index = jsondata.index; 
+    //         let state = jsondata.state;
+    //         let statusElement = document.getElementById(`btn${index}_status`);
+    //         let statusWordElement = document.getElementById(`btn${index}_statusword`);
+    //         if (state <= 0) {
+    //             changeStatusColor(statusElement, "redstatus");
+    //             statusWordElement.innerHTML = " LOW";
+    //         }
+    //         else {
+    //             changeStatusColor(statusElement, "greenstatus");
+    //             statusWordElement.innerHTML = " HIGH";
+    //         }
+    //     }
+    //     jhttp.open('GET', `/button?index=${index}`);
+    //     jhttp.send();
+    // }
+
+    function initBody() {
+        if (isTouchEnabled()) {
+            for (element of document.getElementsByTagName("*")) {
+                element.onmousedown = ""; 
+                element.onmouseup = "";
+            }    
+        }
+        else {
+            for (element of document.getElementsByTagName("*")) {
+                element.ontouchstart = ""; 
+                element.ontouchend = "";
+            } 
+        }
+        initWebSocket();
+    }
+
+    function isTouchEnabled() {
+        return ('ontouchstart' in window) || 
+            (navigator.maxTouchPoints > 0) || 
+            (navigator.msMaxTouchPoints > 0);
+    }
+</script>
+</html>
