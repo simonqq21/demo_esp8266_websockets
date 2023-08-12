@@ -1,18 +1,24 @@
+#include <ArduinoJson.h>
 #include <ESP8266WiFi.h> 
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
 
 // LED and button pins 
+#define TYPELED "led"
+#define TYPEBTN "button" 
 int LEDS[3] = {2, 3, 4};
 int BUTTONS[1] = {5}; 
+char type[16];
 int globalLEDIndex = 0; 
 int globalBtnIndex = 0;  
 
 // async web server
 AsyncWebServer server(80); 
 AsyncWebSocket ws("/ws"); 
-char strData[256];
+StaticJsonDocument<50> inputDoc;
+StaticJsonDocument<50> outputDoc;
+char strData[50];
 
 //static IP address configuration 
 IPAddress local_IP(192,168,5,75);
@@ -26,7 +32,7 @@ IPAddress subnet(255,255,255,0);
 bool ledBits[] = {false, false, false};
 bool ledBlinks[] = {false, false, false};
 unsigned long lastTimeBlinked[] = {0, 0, 0};
-int onIntervals[] = {1000, 1000, 1000}, offIntervals[] = {1000, 3000, 7000};
+int onIntervals[] = {1000, 1000, 1000}, offIntervals[] = {1000, 1000, 1000};
 uint32_t lastTimeUpdated = 0;
 bool buttonBits[] = {false};
 
@@ -67,10 +73,23 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
-    strcpy(strData,(char*)data);
-    Serial.println(strData);
-    // if (strcmp((char*)data, "toggle") == 0) {
-    //   ledState = !ledState;
+    // Serial.println(strData);
+    DeserializationError error = deserializeJson(inputDoc, (char*)data); 
+    if (error) {
+      Serial.print("deserializeJson failed: ");
+      Serial.println(error.f_str());
+    }
+    else 
+      Serial.println("deserializeJson success");
+    strcpy(type, inputDoc["type"]);
+    Serial.println(type);
+    if (strcmp(type, TYPELED) == 0) {
+      controlLED();
+    }
+    // else if (type == TYPEBTN) {
+    //   globalBtnIndex = (int) doc["index"];
+    //   buttonBits[globalBtnIndex] = (bool) doc["state"];
+    // }
     notifyClients();
     // }
   }
@@ -99,22 +118,55 @@ void initWebSocket() {
   server.addHandler(&ws);
 }
 
+void controlLED() {
+  globalLEDIndex = (int) inputDoc["index"];
+  int state = (int) inputDoc["state"];
+  Serial.println(globalLEDIndex);
+  switch (state) {
+    case 0:
+      ledBlinks[globalLEDIndex] = false;
+      ledBits[globalLEDIndex] = false;
+      break;
+    case 1:
+      ledBlinks[globalLEDIndex] = false;
+      ledBits[globalLEDIndex] = true;
+      break;
+    case 2:
+      ledBits[globalLEDIndex] = false;
+      ledBlinks[globalLEDIndex] = true;
+  }
+  Serial.print("Index=");
+  Serial.println(globalLEDIndex);
+  Serial.print("State=");
+  Serial.println(ledBits[globalLEDIndex]);
+  Serial.println();
+  digitalWrite(LEDS[globalLEDIndex], ledBits[globalLEDIndex]);
+  outputDoc.clear();
+  outputDoc["type"] = TYPELED;
+  outputDoc["index"] = globalLEDIndex;
+  outputDoc["state"] = ledBits[globalLEDIndex];
+  outputDoc["blink"] = ledBlinks[globalLEDIndex];
+  serializeJson(outputDoc, strData);
+  ws.textAll(String(strData));
+}
+
+// void notifyClientLED(int index) {
+
+// }
+
 String processor(const String& var) {
   Serial.println(var);
-  if (var == "LED1STATE") {
+  if (var == "LED0STATE") {
     return getLEDStringState(ledBits[0], ledBlinks[0]);
   }
-  else if (var == "LED2STATE") {
+  else if (var == "LED1STATE") {
     return getLEDStringState(ledBits[1], ledBlinks[1]);
   }
-  else if (var == "LED3STATE") {
+  else if (var == "LED2STATE") {
     return getLEDStringState(ledBits[2], ledBlinks[2]);
   }
   else if (var == "BTN1STATE") {
     return getBtnStringState(buttonBits[0]);
-  }
-  else if (var == "LED1STATE") {
-    return getLEDStringState(ledBits[0], ledBlinks[0]);
   }
   return "X";
 }
@@ -133,6 +185,21 @@ String getBtnStringState(bool bit) {
   if (bit)
     return HIGHTEXT;
   else return LOWTEXT;
+}
+
+void blinkLED(int index) {
+  if (ledBlinks[index]) {
+    if (millis() - lastTimeBlinked[index] > offIntervals[index] && !ledBits[index]) {
+      lastTimeBlinked[index] = millis();
+      ledBits[index] = true;
+      digitalWrite(LEDS[index], ledBits[index]);
+    }
+    if (millis() - lastTimeBlinked[index] > onIntervals[index] && ledBits[index]) {
+      lastTimeBlinked[index] = millis();
+      ledBits[index] = false;
+      digitalWrite(LEDS[index], ledBits[index]);
+    }
+  } 
 }
 
 void setup() {
@@ -187,6 +254,9 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   ws.cleanupClients(); 
+    // blink the LEDs that are supposed to blink 
+  for (int i=0;i<3;i++)
+    blinkLED(i);
 //  if (millis() - previousTime >= timeoutTime) {
 //    previousTime = millis(); s
 //    ws.textAll("button 0");
