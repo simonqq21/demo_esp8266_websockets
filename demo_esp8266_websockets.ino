@@ -7,8 +7,10 @@
 // LED and button pins 
 #define TYPELED "led"
 #define TYPEBTN "button" 
-int LEDS[3] = {2, 3, 4};
-int BUTTONS[1] = {5}; 
+#define LEDCOUNT 3
+#define BTNCOUNT 2
+int LEDS[] = {2, 3, 4};
+int BUTTONS[] = {5, 14}; 
 char type[16];
 int globalLEDIndex = 0; 
 int globalBtnIndex = 0;  
@@ -34,17 +36,11 @@ bool ledBlinks[] = {false, false, false};
 unsigned long lastTimeBlinked[] = {0, 0, 0};
 int onIntervals[] = {1000, 1000, 1000}, offIntervals[] = {1000, 1000, 1000};
 uint32_t lastTimeUpdated = 0;
-bool buttonStatus[] = {false};
-bool presButtonBits[] = {false};
-bool prevButtonBits[] = {false};
-unsigned long lastDebounceTimes[] = {0};
+bool buttonStatus[] = {false, false};
+bool presButtonBits[] = {false, false};
+bool prevButtonBits[] = {false, false};
+unsigned long lastDebounceTimes[] = {0, 0};
 const int debounceDelay = 10;
-
-// current time 
-unsigned long currentTime = millis();
-unsigned long previousTime = 0;
-unsigned long previousTimeBtn = 0; 
-const long timeoutTime = 50; 
 
 #define LOCAL_SSID "QUE-STARLINK"
 #define LOCAL_PASS "Quefamily01259"
@@ -146,22 +142,22 @@ void sendBtnJSON() {
   ws.textAll(strData);
 }
 
-String processor(const String& var) {
-  Serial.println(var);
-  if (var == "LED0STATE") {
-    return getLEDStringState(ledBits[0], ledBlinks[0]);
-  }
-  else if (var == "LED1STATE") {
-    return getLEDStringState(ledBits[1], ledBlinks[1]);
-  }
-  else if (var == "LED2STATE") {
-    return getLEDStringState(ledBits[2], ledBlinks[2]);
-  }
-  else if (var == "BTN1STATE") {
-    return getBtnStringState(presButtonBits[0]);
-  }
-  return "X";
-}
+// String processor(const String& var) {
+//   Serial.println(var);
+//   if (var == "LED0STATE") {
+//     return getLEDStringState(ledBits[0], ledBlinks[0]);
+//   }
+//   else if (var == "LED1STATE") {
+//     return getLEDStringState(ledBits[1], ledBlinks[1]);
+//   }
+//   else if (var == "LED2STATE") {
+//     return getLEDStringState(ledBits[2], ledBlinks[2]);
+//   }
+//   else if (var == "BTN1STATE") {
+//     return getBtnStringState(presButtonBits[0]);
+//   }
+//   return "X";
+// }
 
 String getLEDStringState(bool bit, bool blink) {
   if (blink)
@@ -239,7 +235,7 @@ void setup() {
 
   // route for root web page 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(LittleFS, "/index.html", String(), false, processor);});
+    request->send(LittleFS, "/index.html", String(), false);});
   server.begin();
 }
 
@@ -247,12 +243,12 @@ void loop() {
   // put your main code here, to run repeatedly:
   ws.cleanupClients(); 
     // blink the LEDs that are supposed to blink 
-  for (int i=0;i<3;i++)
+  for (int i=0;i<LEDCOUNT;i++)
     blinkLED(i);
-  for (int i=0;i<1;i++) {
+  for (int i=0;i<BTNCOUNT;i++) {
     buttonStatus[i] = digitalRead(BUTTONS[i]); 
   }
-  for (int i=0;i<1;i++) {
+  for (int i=0;i<BTNCOUNT;i++) {
     if (buttonStatus[i] != prevButtonBits[i]) {
       lastDebounceTimes[i] = millis(); 
     }
@@ -265,7 +261,7 @@ void loop() {
       }
     }
   }
-  for (int i=0;i<1;i++) {
+  for (int i=0;i<BTNCOUNT;i++) {
     prevButtonBits[i] = buttonStatus[i]; 
   }
 }
