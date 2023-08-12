@@ -133,9 +133,11 @@
     </div>  
 </body>
 <script type="text/javascript">
-    const onText = "On";
-    const offText = "Off";
-    const blinkText = "Blinking";
+    const onText = "ON";
+    const offText = "OFF";
+    const blinkText = "BLINKING";
+    const lowText = "LOW";
+    const highText = "HIGH";
 
     let gateway = `ws://${window.location.hostname}/ws`;
     let websocket;
@@ -161,12 +163,12 @@
     // runs when websocket receives message from server
     function onMessage(event) {
         let jsondata = JSON.parse(event.data);
-        // alert(jsondata);
         let type = jsondata.type;
-        // alert(type);
         if (type == 'led') {
-            // alert('led');
             updateLEDStatus(jsondata);
+        }
+        else if (type == 'button') {
+            updateBtnStatus(jsondata);
         }
     }
 
@@ -174,7 +176,7 @@
         let ledJSON = {
             'type': 'led',
             'index': index,
-            'state': state, 
+            'state': state
         }
         websocket.send(JSON.stringify(ledJSON));
     }
@@ -204,25 +206,20 @@
         statusElement.classList.add(statusColor);
     }
 
-    // function queryButton(index) {
-    //         let jsondata = JSON.parse(jhttp.responseText);
-    //         let type = jsondata.type;
-    //         let index = jsondata.index; 
-    //         let state = jsondata.state;
-    //         let statusElement = document.getElementById(`btn${index}_status`);
-    //         let statusWordElement = document.getElementById(`btn${index}_statusword`);
-    //         if (state <= 0) {
-    //             changeStatusColor(statusElement, "redstatus");
-    //             statusWordElement.innerHTML = " LOW";
-    //         }
-    //         else {
-    //             changeStatusColor(statusElement, "greenstatus");
-    //             statusWordElement.innerHTML = " HIGH";
-    //         }
-    //     }
-    //     jhttp.open('GET', `/button?index=${index}`);
-    //     jhttp.send();
-    // }
+    function updateBtnStatus(jsondata) {
+        let index = jsondata.index; 
+        let state = jsondata.state;
+        let statusElement = document.getElementById(`btn${index}_status`);
+        let statusWordElement = document.getElementById(`btn${index}_statusword`);
+        if (state <= 0) {
+            changeStatusColor(statusElement, "redstatus");
+            statusWordElement.innerHTML = lowText;
+        }
+        else {
+            changeStatusColor(statusElement, "greenstatus");
+            statusWordElement.innerHTML = highText;
+        }
+    }
 
     function initBody() {
         if (isTouchEnabled()) {

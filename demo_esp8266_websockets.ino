@@ -16,9 +16,9 @@ int globalBtnIndex = 0;
 // async web server
 AsyncWebServer server(80); 
 AsyncWebSocket ws("/ws"); 
-StaticJsonDocument<50> inputDoc;
-StaticJsonDocument<50> outputDoc;
-char strData[50];
+StaticJsonDocument<70> inputDoc;
+StaticJsonDocument<70> outputDoc;
+char strData[70];
 
 //static IP address configuration 
 IPAddress local_IP(192,168,5,75);
@@ -34,12 +34,17 @@ bool ledBlinks[] = {false, false, false};
 unsigned long lastTimeBlinked[] = {0, 0, 0};
 int onIntervals[] = {1000, 1000, 1000}, offIntervals[] = {1000, 1000, 1000};
 uint32_t lastTimeUpdated = 0;
-bool buttonBits[] = {false};
+bool buttonStatus[] = {false};
+bool presButtonBits[] = {false};
+bool prevButtonBits[] = {false};
+unsigned long lastDebounceTimes[] = {0};
+const int debounceDelay = 10;
 
 // current time 
 unsigned long currentTime = millis();
-unsigned long previousTime = 0; 
-const long timeoutTime = 2000; 
+unsigned long previousTime = 0;
+unsigned long previousTimeBtn = 0; 
+const long timeoutTime = 50; 
 
 #define LOCAL_SSID "QUE-STARLINK"
 #define LOCAL_PASS "Quefamily01259"
@@ -65,15 +70,10 @@ void printWiFi() {
   Serial.println(" dBm");
 }
 
-void notifyClients() {
-  ws.textAll(String(strData));
-}
-
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
-    // Serial.println(strData);
     DeserializationError error = deserializeJson(inputDoc, (char*)data); 
     if (error) {
       Serial.print("deserializeJson failed: ");
@@ -82,16 +82,9 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     else 
       Serial.println("deserializeJson success");
     strcpy(type, inputDoc["type"]);
-    Serial.println(type);
-    if (strcmp(type, TYPELED) == 0) {
+    if (strcmp(type, TYPELED) == 0) {   
       controlLED();
     }
-    // else if (type == TYPEBTN) {
-    //   globalBtnIndex = (int) doc["index"];
-    //   buttonBits[globalBtnIndex] = (bool) doc["state"];
-    // }
-    notifyClients();
-    // }
   }
 }
 
@@ -121,7 +114,6 @@ void initWebSocket() {
 void controlLED() {
   globalLEDIndex = (int) inputDoc["index"];
   int state = (int) inputDoc["state"];
-  Serial.println(globalLEDIndex);
   switch (state) {
     case 0:
       ledBlinks[globalLEDIndex] = false;
@@ -135,11 +127,6 @@ void controlLED() {
       ledBits[globalLEDIndex] = false;
       ledBlinks[globalLEDIndex] = true;
   }
-  Serial.print("Index=");
-  Serial.println(globalLEDIndex);
-  Serial.print("State=");
-  Serial.println(ledBits[globalLEDIndex]);
-  Serial.println();
   digitalWrite(LEDS[globalLEDIndex], ledBits[globalLEDIndex]);
   outputDoc.clear();
   outputDoc["type"] = TYPELED;
@@ -147,12 +134,17 @@ void controlLED() {
   outputDoc["state"] = ledBits[globalLEDIndex];
   outputDoc["blink"] = ledBlinks[globalLEDIndex];
   serializeJson(outputDoc, strData);
-  ws.textAll(String(strData));
+  ws.textAll(strData);
 }
 
-// void notifyClientLED(int index) {
-
-// }
+void sendBtnJSON() {
+  outputDoc.clear(); 
+  outputDoc["type"] = TYPEBTN;
+  outputDoc["index"] = globalBtnIndex; 
+  outputDoc["state"] = presButtonBits[globalBtnIndex];
+  serializeJson(outputDoc, strData);
+  ws.textAll(strData);
+}
 
 String processor(const String& var) {
   Serial.println(var);
@@ -166,7 +158,7 @@ String processor(const String& var) {
     return getLEDStringState(ledBits[2], ledBlinks[2]);
   }
   else if (var == "BTN1STATE") {
-    return getBtnStringState(buttonBits[0]);
+    return getBtnStringState(presButtonBits[0]);
   }
   return "X";
 }
@@ -257,8 +249,23 @@ void loop() {
     // blink the LEDs that are supposed to blink 
   for (int i=0;i<3;i++)
     blinkLED(i);
-//  if (millis() - previousTime >= timeoutTime) {
-//    previousTime = millis(); s
-//    ws.textAll("button 0");
-//  }
+  for (int i=0;i<1;i++) {
+    buttonStatus[i] = digitalRead(BUTTONS[i]); 
+  }
+  for (int i=0;i<1;i++) {
+    if (buttonStatus[i] != prevButtonBits[i]) {
+      lastDebounceTimes[i] = millis(); 
+    }
+    if (millis() - lastDebounceTimes[i] > debounceDelay) {
+      lastDebounceTimes[i] = millis();
+      if (presButtonBits[i] != buttonStatus[i]) {
+        presButtonBits[i] = buttonStatus[i];
+        globalBtnIndex = i;
+        sendBtnJSON();
+      }
+    }
+  }
+  for (int i=0;i<1;i++) {
+    prevButtonBits[i] = buttonStatus[i]; 
+  }
 }
