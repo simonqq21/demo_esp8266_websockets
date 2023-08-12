@@ -70,18 +70,34 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
-    DeserializationError error = deserializeJson(inputDoc, (char*)data); 
-    if (error) {
-      Serial.print("deserializeJson failed: ");
-      Serial.println(error.f_str());
+    if (strcmp("new", (char*)data) == 0) {
+      for (int i=0;i<LEDCOUNT;i++) {
+        globalLEDIndex = i;
+        sendLEDJSON();
+      }
+      for (int i=0;i<BTNCOUNT;i++) {
+        globalBtnIndex = i; 
+        sendBtnJSON();
+      }
     }
-    else 
-      Serial.println("deserializeJson success");
-    strcpy(type, inputDoc["type"]);
-    if (strcmp(type, TYPELED) == 0) {   
-      controlLED();
+    else {
+      DeserializationError error = deserializeJson(inputDoc, (char*)data); 
+      if (error) {
+        Serial.print("deserializeJson failed: ");
+        Serial.println(error.f_str());
+      }
+      else 
+        Serial.println("deserializeJson success");
+      strcpy(type, inputDoc["type"]);
+      if (strcmp(type, TYPELED) == 0) {   
+        controlLED();
+      }
     }
   }
+}
+
+void sendAll() {
+
 }
 
 void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type,
@@ -124,6 +140,10 @@ void controlLED() {
       ledBlinks[globalLEDIndex] = true;
   }
   digitalWrite(LEDS[globalLEDIndex], ledBits[globalLEDIndex]);
+  sendLEDJSON();
+}
+
+void sendLEDJSON() {
   outputDoc.clear();
   outputDoc["type"] = TYPELED;
   outputDoc["index"] = globalLEDIndex;

@@ -160,6 +160,7 @@
     // runs when websocket opens
     function onOpen(event) {
         // alert('Connection opened');
+        websocket.send("new");
     }
 
     // runs when websocket closes
