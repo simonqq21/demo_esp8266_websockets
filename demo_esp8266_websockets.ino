@@ -28,7 +28,7 @@ IPAddress gateway(192,168,5,1);
 IPAddress subnet(255,255,255,0);
 //IPAddress primaryDNS(8,8,8,8);
 //IPAddress secondaryDNS(8,8,4,4);
-#define APMODE false
+#define APMODE true
 
 // status variables 
 bool ledBits[] = {false, false, false};
